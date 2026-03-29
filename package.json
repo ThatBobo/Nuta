@@ -1,0 +1,39 @@
+{
+  "name": "i-ll-think-of-something",
+  "version": "0.0.1",
+  "description": "Lightweight session-based payments for developers.",
+  "author": "ThatBobo",
+  "license": "MIT",
+
+  "main": "dist/triper.js",
+  "module": "dist/triper.js",
+  "types": "dist/index.d.ts",
+
+  "files": [
+    "dist"
+  ],
+
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "publish:npm": "npm publish --access public"
+  },
+
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+
+  "dependencies": {
+    "react-router-dom": "^6.22.3"
+  },
+
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}

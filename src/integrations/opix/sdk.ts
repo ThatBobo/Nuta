@@ -50,3 +50,7 @@ export class Opix {
 
   validateKey = () => this.request("/keys/validate");
 }
+
+export const createClient = (_clientId: string, apiKey: string) => {
+  return new Opix({ apiKey });
+};

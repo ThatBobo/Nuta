@@ -1,56 +1,56 @@
-export interface OpixClientOptions {
-  apiKey: string;
-  baseUrl?: string;
-}
+const BASE_URL =
+  "https://coatunyealgfrmpszpsu.supabase.co/functions/v1";
 
 export class Opix {
-  private apiKey: string;
-  private baseUrl: string;
+  constructor(private apiKey: string) {}
 
-  constructor(options: OpixClientOptions) {
-    this.apiKey = options.apiKey;
-    this.baseUrl = options.baseUrl ?? "https://opix-io.lovable.app/api";
-  }
-
-  private async request(path: string, method: string = "GET", body?: any) {
-    const headers: Record<string, string> = {
-      "Authorization": `Bearer ${this.apiKey}`,
-      "Content-Type": "application/json"
-    };
-
-    const res = await fetch(`${this.baseUrl}${path}`, {
+  private async request<T>(
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown
+  ): Promise<T> {
+    const res = await fetch(`${BASE_URL}${path}`, {
       method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined
+      headers: {
+        "Authorization": `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
     });
 
+    const json = await res.json();
+
     if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      throw new Error(error.error || `Request failed with status ${res.status}`);
+      throw new Error(json.error?.message || "Unknown API error");
     }
 
-    return res.json();
+    return json.data;
   }
 
-  invites = {
-    create: (data: any) => this.request("/invites/create", "POST", data),
-    list: () => this.request("/invites/list")
-  };
+  validateKey() {
+    return this.request("POST", "/api-keys-validate");
+  }
 
-  events = {
-    track: (data: any) => this.request("/events/track", "POST", data),
-    list: () => this.request("/events/list")
-  };
+  listAuthorizations() {
+    return this.request("GET", "/authorizations-list");
+  }
 
-  authorizations = {
-    create: (data: any) => this.request("/authorizations/create", "POST", data),
-    list: () => this.request("/authorizations/list"),
-    revoke: (id: string) => this.request("/authorizations/revoke", "POST", { id })
-  };
+  createAuthorization(payload: any) {
+    return this.request("POST", "/authorizations-create", payload);
+  }
 
-  validateKey = () => this.request("/keys/validate");
+  revokeAuthorization(id: string) {
+    return this.request("POST", "/authorizations-revoke", { id });
+  }
+
+  listEvents(params?: { limit?: number; since?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request("GET", `/events-list${query ? `?${query}` : ""}`);
+  }
+
+  trackEvent(payload: any) {
+    return this.request("POST", "/events-track", payload);
+  }
 }
 
-export const createClient = (_clientId: string, apiKey: string) => {
-  return new Opix({ apiKey });
-};
+export const createClient = (apiKey: string) => new Opix(apiKey);

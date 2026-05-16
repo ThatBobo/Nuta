@@ -1,56 +1,66 @@
-const BASE_URL =
-  "https://coatunyealgfrmpszpsu.supabase.co/functions/v1";
+// src/integrations/opix/sdk.ts
+const BASE_URL = "https://coatunyealgfrmpszpsu.supabase.co/functions/v1";
 
-export class Opix {
-  constructor(private apiKey: string) {}
+export type OpixClient = ReturnType<typeof createClient>;
 
-  private async request<T>(
-    method: "GET" | "POST",
-    path: string,
-    body?: unknown
-  ): Promise<T> {
+export const createClient = (clientId: string, apiKey: string) => {
+  const request = async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
     const res = await fetch(`${BASE_URL}${path}`, {
-      method,
+      ...init,
       headers: {
-        "Authorization": `Bearer ${this.apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        ...(init.headers ?? {}),
       },
-      body: body ? JSON.stringify(body) : undefined,
     });
-
     const json = await res.json();
-
-    if (!res.ok) {
-      throw new Error(json.error?.message || "Unknown API error");
+    if (!res.ok || json.error) {
+      throw new Error(json.error?.message ?? `Opix request failed: ${res.status}`);
     }
+    return json.data as T;
+  };
 
-    return json.data;
-  }
-
-  validateKey() {
-    return this.request("POST", "/api-keys-validate");
-  }
-
-  listAuthorizations() {
-    return this.request("GET", "/authorizations-list");
-  }
-
-  createAuthorization(payload: any) {
-    return this.request("POST", "/authorizations-create", payload);
-  }
-
-  revokeAuthorization(id: string) {
-    return this.request("POST", "/authorizations-revoke", { id });
-  }
-
-  listEvents(params?: { limit?: number; since?: string }) {
-    const query = new URLSearchParams(params as any).toString();
-    return this.request("GET", `/events-list${query ? `?${query}` : ""}`);
-  }
-
-  trackEvent(payload: any) {
-    return this.request("POST", "/events-track", payload);
-  }
-}
-
-export const createClient = (apiKey: string) => new Opix(apiKey);
+  return {
+    clientId,
+    validate: () =>
+      request<{ valid: boolean; scopes: string[] }>("/api-keys-validate", { method: "POST" }),
+    track: (input: {
+      event_type: string;
+      payload?: Record<string, unknown>;
+      status_code?: number;
+    }) =>
+      request("/events-track", {
+        method: "POST",
+        body: JSON.stringify({ authorization_id: clientId, ...input }),
+      }),
+    listEvents: (params?: { limit?: number; since?: string }) => {
+      const qs = new URLSearchParams(
+        Object.entries(params ?? {}).filter(([, v]) => v != null) as [string, string][],
+      ).toString();
+      return request(`/events-list${qs ? `?${qs}` : ""}`);
+    },
+    invites: {
+      list: (params?: { limit?: number; status?: string }) => {
+        const qs = new URLSearchParams(
+          Object.entries(params ?? {}).filter(([, v]) => v != null) as [string, string][],
+        ).toString();
+        return request(`/invites-list${qs ? `?${qs}` : ""}`);
+      },
+      create: (input?: { type?: string; source?: string; metadata?: Record<string, unknown>; expires_at?: string }) =>
+        request("/invites-create", {
+          method: "POST",
+          body: JSON.stringify({ authorization_id: clientId, ...(input ?? {}) }),
+        }),
+      redeem: (invite_id: string, redeemed_by?: string) =>
+        request("/invites-redeem", {
+          method: "POST",
+          body: JSON.stringify({ invite_id, redeemed_by }),
+        }),
+      revoke: (invite_id: string) =>
+        request("/invites-revoke", {
+          method: "POST",
+          body: JSON.stringify({ invite_id }),
+        }),
+    },
+  };
+};
